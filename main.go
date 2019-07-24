@@ -31,7 +31,13 @@ func isMeInChannel(api *slack.Client, c slack.Channel) bool {
 }
 
 func getChannelsToLeave(api *slack.Client) ([]slack.Channel, error) {
-	f, err := os.Open(".leave")
+	lfPath, ok := os.LookupEnv("SLACK_LEAVE_CHANNELS")
+	if !ok {
+		lfPath = ".leave"
+	}
+	log.Printf("uses leave channels file '%s'", lfPath)
+
+	f, err := os.Open(lfPath)
 	if err != nil {
 		return nil, err
 	}
