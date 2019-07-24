@@ -2,6 +2,7 @@ package main
 
 import (
 	"bufio"
+	"flag"
 	"log"
 	"math"
 	"os"
@@ -68,7 +69,11 @@ func getChannelsToLeave(api *slack.Client) ([]slack.Channel, error) {
 }
 
 func main() {
-	err := godotenv.Load()
+	envFile := flag.String("envfile", ".env", "Environment variable file to load.")
+	flag.Parse()
+	log.Printf("loading env vars from %s", *envFile)
+
+	err := godotenv.Load(*envFile)
 	if err != nil {
 		panic(err)
 	}
