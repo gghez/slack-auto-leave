@@ -91,27 +91,34 @@ func main() {
 		panic(err)
 	}
 
+	leaveMsg, _ := os.LookupEnv("SLACK_LEAVE_MESSAGE")
+
 	for _, c := range channels {
 		log.Printf("%s ready to leave", c.Name)
 
-		msgOptions := []slack.MsgOption{
-			slack.MsgOptionText("Sorry I'm not supposed to be there. Bye :)", false),
-			slack.MsgOptionAsUser(true),
-		}
-		mc, ts, ms, err := api.SendMessage(c.ID, msgOptions...)
-		if err != nil {
-			panic(err)
+		// Let a message if configured
+		if leaveMsg != "" {
+			msgOptions := []slack.MsgOption{
+				slack.MsgOptionText(leaveMsg, false),
+				slack.MsgOptionAsUser(true),
+			}
+
+			mc, ts, ms, err := api.SendMessage(c.ID, msgOptions...)
+			if err != nil {
+				panic(err)
+			}
+
+			sc, err := api.GetChannelInfo(mc)
+			if err != nil {
+				panic(err)
+			}
+
+			tfloat, _ := strconv.ParseFloat(ts, 64)
+			t := time.Unix(int64(math.Floor(tfloat)), 0)
+
+			log.Printf("message '%s' sent to %s at %s.", ms, sc.Name, t)
 		}
 
-		sc, err := api.GetChannelInfo(mc)
-		if err != nil {
-			panic(err)
-		}
-
-		tfloat, _ := strconv.ParseFloat(ts, 64)
-		t := time.Unix(int64(math.Floor(tfloat)), 0)
-
-		log.Printf("message '%s' sent to %s at %s.", ms, sc.Name, t)
 		notInChannel, err := api.LeaveChannel(c.ID)
 		if err != nil {
 			panic(err)
