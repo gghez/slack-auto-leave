@@ -1,3 +1,13 @@
+/*
+The script gently make you leave undesired slack channels.
+
+Environment variables configuration:
+	SLACK_MYSELF: your slack pseudo (not slack ID)
+	SLACK_LEAVE_CHANNELS: path to the file containing channels to leave (one per line without #)
+	SLACK_APP_TOKEN: Slack application token used by Slack API endpoints
+	SLACK_LEAVE_MESSAGE: gentle message to be sent by you (not the application) before leaving channel
+
+*/
 package main
 
 import (
@@ -74,6 +84,30 @@ func getChannelsToLeave(api *slack.Client) ([]slack.Channel, error) {
 	return ctl, nil
 }
 
+func sendMessage(api *slack.Client, c slack.Channel, leaveMsg string) error {
+	msgOptions := []slack.MsgOption{
+		slack.MsgOptionText(leaveMsg, false),
+		slack.MsgOptionAsUser(true),
+	}
+
+	mc, ts, ms, err := api.SendMessage(c.ID, msgOptions...)
+	if err != nil {
+		return err
+	}
+
+	sc, err := api.GetChannelInfo(mc)
+	if err != nil {
+		return err
+	}
+
+	tfloat, _ := strconv.ParseFloat(ts, 64) // no err handling here because for display usage only
+	t := time.Unix(int64(math.Floor(tfloat)), 0)
+
+	log.Printf("message '%s' sent to %s at %s.", ms, sc.Name, t)
+
+	return nil
+}
+
 func main() {
 	envFile := flag.String("envfile", ".env", "Environment variable file to load.")
 	flag.Parse()
@@ -98,25 +132,9 @@ func main() {
 
 		// Let a message if configured
 		if leaveMsg != "" {
-			msgOptions := []slack.MsgOption{
-				slack.MsgOptionText(leaveMsg, false),
-				slack.MsgOptionAsUser(true),
+			if err = sendMessage(api, c, leaveMsg); err != nil {
+				log.Print("failed to send message to channel.")
 			}
-
-			mc, ts, ms, err := api.SendMessage(c.ID, msgOptions...)
-			if err != nil {
-				panic(err)
-			}
-
-			sc, err := api.GetChannelInfo(mc)
-			if err != nil {
-				panic(err)
-			}
-
-			tfloat, _ := strconv.ParseFloat(ts, 64)
-			t := time.Unix(int64(math.Floor(tfloat)), 0)
-
-			log.Printf("message '%s' sent to %s at %s.", ms, sc.Name, t)
 		}
 
 		notInChannel, err := api.LeaveChannel(c.ID)
